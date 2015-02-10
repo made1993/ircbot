@@ -4,7 +4,7 @@
 
 
 void * servRecv(void *args){
-	char buf[512], aux2[512];
+	char buf[512], aux2[512],msg[512];
 	char *command, *usr, *ch,*trash;
 	int aux; 
 	while(1){
@@ -29,10 +29,25 @@ void * servRecv(void *args){
 			printf(" %s\n",command);
 			if(strcmp(command,"JOIN")==0){
 				printf("%s\n",usr);
-				sprintf(aux2,"MODE #cosas +o %s%c%c\0",usr,0x0d,0x0a);
+				sprintf(aux2,"MODE #cosas +o %s%c%c",usr,0x0d,0x0a);
 				printf(" %s",aux2);
 				escribir(sockfd, aux2);
 				
+			}
+			if(strcmp(command,"PRIVMSG")==0){
+				trash = strtok (NULL," ");
+				trash = strtok (NULL,":");
+				printf("trash=%s\n",trash);
+				strcpy(aux2,trash);
+				printf("aux2=%s\n",aux2);
+				trash = strtok (NULL,":");
+				if(trash!=NULL){
+					strcpy(msg,trash);
+					printf("msg=%s\n",msg);
+					sprintf(aux2,"%s:%s",aux2,msg);
+				}
+				printf ("se envia=%s",aux2);
+				escribir(sockfd, aux2);
 			}
 		}
 	}
@@ -72,7 +87,7 @@ void connect_client(void)
 	printf("los caracteres son estos:%c %c",0X0d,0X0a);
 	pthread_create(&h1,NULL, servRecv, (void *)NULL );
 	//IRC_Nick(command, NULL, "raspberry");
-	sprintf(command, "NICK raspberry%c%cUSER raspberry raspberry metis.ii.uam.es :raspberry%c%c",0X0d,0X0d,0X0d,0X0d);
+	sprintf(command, "NICK rprueba%c%cUSER rprueba rprueba metis.ii.uam.es :rprueba%c%c",0X0d,0X0d,0X0d,0X0d);
 	nick=escribir(sockfd,command);
 	printf("%s, %d\n",command,nick );
 	
@@ -95,7 +110,6 @@ void connect_client(void)
 		sleep(20);
 		sprintf(command,"PING metis.ii.uam.es%c%c",0X0d,0X0d);
 		user=escribir(sockfd,command);
-		printf("%s", command);
 	}
  }
 int abrirSocketTCP(){
