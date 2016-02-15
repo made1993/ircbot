@@ -47,7 +47,7 @@ void readconf();
 
 
 int sockfd, port;
-int sendv, loro, excptloro;
+int sendv, loro, excptloro, rtfmv;
 INIT_MODE mode;
 WINDOW *input_win, *title_win, *output_win;
 FILE *plogf, *pconff;

@@ -104,7 +104,8 @@ void iniGlobales(){
 		exit(EXIT_FAILURE);
 	}
 	sendv = 1;
-	loro = 0;
+	rtfmv = 0;
+    loro = 0;
 	excptloro = 0;
 
 	if(IS_CURSES(mode)){
