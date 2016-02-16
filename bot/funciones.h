@@ -2,11 +2,8 @@
 #define _SOCKET_H
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/socket.h>
-#include <errno.h>
-#include <netinet/in.h>
 #include <string.h>
-#include <netdb.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -52,4 +49,6 @@ INIT_MODE mode;
 WINDOW *input_win, *title_win, *output_win;
 FILE *plogf, *pconff;
 char servername[64], nick_s[16];
+
 #endif
+

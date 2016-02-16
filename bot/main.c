@@ -1,4 +1,5 @@
 #include "funciones.h"
+#include <getopt.h>
 
 void intHandler(int);
 void iniGlobales();
@@ -9,44 +10,44 @@ pthread_t h1, h2;
 char *whitespaces = NULL;
 
 int main(int argc, char *argv[]){
-    if(argc == 2){
-        if(strcmp(argv[1], "--silent") == 0) mode = SILENT;
-        if(strcmp(argv[1], "--raw") == 0) mode = STDOUT;
-    } else if(argc > 1){
-        fprintf(stderr, "Error en los argumentos.\n");
-        return EXIT_FAILURE;
-    } else{
-        mode = NCURSES;
-    }
+    static struct option long_options[] = {
+        {"raw", no_argument, &mode, STDOUT},
+        {"silent", no_argument, &mode, SILENT},
+        {0, 0, 0, 0}
+    };
     pid_t pid = 0;
-    if(IS_SILENT(mode)){
-        pid = fork();
+    int c, option_index = 0;
+    mode = NCURSES;
+    while(1){
+        c = getopt_long(argc, argv, "rs", long_options, &option_index);
+        if (c == -1) break;
     }
+    if(IS_SILENT(mode)) pid = fork();
     if(pid == 0){
         char msg[512];
+        int i = LINES - 5;
         if(IS_CURSES(mode)) initCurses();
         iniGlobales();
         connect_client(&h1, &h2);
-        int i = LINES-5;
         signal(SIGINT, intHandler);
         while(1){
             if(IS_CURSES(mode)){
-                mvwgetnstr(input_win, LINES - 3, strlen("Message: "), msg, 512);
                 char* p;
+                mvwgetnstr(input_win, LINES - 3, strlen("Message: "), msg, 512);
                 if((p = strchr(msg, '\n')) != NULL) *p = '\0';
                 if(strcmp(msg, "QUIT") == 0) break;
                 mvwprintw(input_win, i, 0, "%s", msg);
-                mvwprintw(input_win, LINES-3, strlen("Message: "), whitespaces);
-                mvwprintw(input_win, LINES-2, 0, whitespaces);
+                mvwprintw(input_win, LINES - 3, strlen("Message: "), whitespaces);
+                mvwprintw(input_win, LINES - 2, 0, whitespaces);
                 wrefresh(input_win);
                 i -= 2;
                 if(i - 2 <= 0) i = LINES - 5;
                 mvwprintw(input_win, i, 0, whitespaces);
-                mvwprintw(input_win, i+1, 0, whitespaces);
+                mvwprintw(input_win, i + 1, 0, whitespaces);
                 wrefresh(input_win);
                 if(getCommand(msg)) continue;
-                sprintf(msg,"%s%c%c",msg,0X0d,0X0d);
-                escribir(sockfd,msg);
+                sprintf(msg, "%s%c%c", msg, 0X0d, 0X0d);
+                escribir(sockfd, msg);
                 wrefresh(output_win);
             } else {
                 pause();
@@ -133,7 +134,7 @@ void initCurses(){
     output_win = NULL;
     plogf = NULL;
     initscr();			/* Start curses mode 		*/
-    cbreak();			
+    cbreak();
     echo();
     keypad(stdscr, TRUE);
 }
@@ -153,7 +154,15 @@ int getCommand(char* msg){
     }else if(strcmp(msg, "NLORO") == 0){
         loro = NLORO;
         ret = 1;
+    }else if(strcmp(msg, "RTFM") == 0){
+        rtfmv = 1;
+        ret = 1;
+    }else if(strcmp(msg, "NTRFM") == 0){
+        rtfmv = 0;
+        ret = 1;
     }
+
+
     if (ret == 1) printout(0, msg);
     return ret;
 }

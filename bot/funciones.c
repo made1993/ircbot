@@ -1,14 +1,7 @@
 #include "funciones.h"
-/*anadido return -1*/
-
-char * posiciona(char crt, char *str){
-    uint i = 0;
-    if(str == NULL) return NULL;
-    for(i = 0; i < strlen(str); i++){
-        if(str[i] == crt) break;
-    }
-    return &str[i+1];
-}
+#include <errno.h>
+#include <netdb.h>
+#include <sys/socket.h>
 
 int check_usr(char * usr){
     size_t size = 0;
@@ -29,6 +22,36 @@ int check_usr(char * usr){
     return 0;
 }
 
+void obey(char* s){
+    if(strncmp(s, "SEND", strlen("SEND")) == 0){
+        sendv = 1;
+        printout(0, "SEND\n");
+    }else if(strncmp(s, "NSEND", strlen("NSEND")) == 0){
+        sendv = 0;
+        printout(0, "NSEND\n");
+    } else if(strncmp(s, "LORO", strlen("LORO")) == 0){
+        loro = 1;
+        printout(0, "LORO\n");
+    } else if(strncmp(s, "NLORO", strlen("NLORO")) == 0){
+        loro = 0;
+        printout(0, "NLORO\n");
+    } else if (strncmp(s, "RTFM", strlen("RTFM")) == 0){
+        rtfmv = 1;
+        printout(0, "RTFM\n");
+    } else if (strncmp(s, "NRTFM", strlen("NRTFM")) == 0){
+        rtfmv = 0;
+        printout(0, "NRTFM\n");
+    } else if (sendv == 1 && iscommand(s) == 1){
+        char *p, *aux = malloc(strlen(s) + strlen("Enviado: ") + 1);
+        escribir(sockfd, s);
+        strcpy(aux, s);
+        while((p = strchr(aux, '\r')) != NULL) *p = '/';
+        sprintf(aux, "Enviado: %s", aux);
+        printout(0, aux);
+        free(aux);
+    }
+}
+
 void * servRecv(void *args){
     char buf[BUFFER_SIZE], aux2[BUFFER_SIZE], ch[128], aux3[BUFFER_SIZE], printbuf[BUFFER_SIZE + 16];
     char *command, *usr, *trash, *ultra_trash, *maximum_trash, *p;
@@ -41,7 +64,6 @@ void * servRecv(void *args){
             while((p = strchr(aux3, '\r')) != NULL) *p = '/';
             sprintf(printbuf, "Recibido: %s", aux3);
             if (strstr(aux3, " PONG") == NULL) printout(0, printbuf);
-            //if (strstr(aux3, "raspberry@") != NULL) excptloro = 1;
             usr = strtok (buf,"!");
             if(usr == NULL) continue;
             trash = strtok (NULL," ");
@@ -62,7 +84,6 @@ void * servRecv(void *args){
                 ultra_trash = malloc(sizeof(char) * strlen(trash) + 3);
                 strcpy(ultra_trash, &trash[1]);
                 maximum_trash = malloc(strlen(trash) + strlen(usr) + strlen("PRIVMSG") + 5);
-                //wprintw(output_win, "EXCPTLORO=%i\n", excptloro);
                 if(iscommand(ultra_trash) == 0 && loro == 1){
                     sprintf(maximum_trash, "PRIVMSG %s :%s", ch, ultra_trash);
                     p = strchr(maximum_trash, '\r');
@@ -79,7 +100,6 @@ void * servRecv(void *args){
                     }
                 } else if(iscommand(ultra_trash) == 0 && rtfmv == 1){
                     sprintf(maximum_trash, "PRIVMSG %s :RTFM\n\r", ch);
-                    fprintf(stderr, "%s\n", maximum_trash);
                     escribir(sockfd, maximum_trash);
                     strcpy(aux3, maximum_trash);
                     while((p = strchr(aux3, '\r')) != NULL) *p = '/';
@@ -90,33 +110,8 @@ void * servRecv(void *args){
                         free(maximum_trash);
                         maximum_trash = NULL;
                     }
-                } else if(check_usr(&usr[1]) != 0){
-                    if(strncmp(ultra_trash, "SEND", strlen("SEND")) == 0){
-                        sendv = 1;
-                        printout(0, "SEND\n");
-                    }else if(strncmp(ultra_trash, "NSEND", strlen("NSEND")) == 0){
-                        sendv = 0;
-                        printout(0, "NSEND\n");
-                    } else if(strncmp(ultra_trash, "LORO", strlen("LORO")) == 0){
-                        loro = 1;
-                        printout(0, "LORO\n");
-                    } else if(strncmp(ultra_trash, "NLORO", strlen("NLORO")) == 0){
-                        loro = 0;
-                        printout(0, "NLORO\n");
-                    } else if (strncmp(ultra_trash, "RTFM", strlen("RTFM")) == 0){
-                        rtfmv = 1;
-                        printout(0, "RTFM\n");
-                    } else if (strncmp(ultra_trash, "NRTFM", strlen("NRTFM")) == 0){
-                        rtfmv = 0;
-                        printout(0, "NRTFM\n");
-                    }else if (sendv == 1 && iscommand(ultra_trash) == 1){
-                        escribir(sockfd, ultra_trash);
-                        strcpy(aux3, ultra_trash);
-                        while((p = strchr(aux3, '\r')) != NULL) *p = '/';
-                        printbuf[0] = '\0';
-                        sprintf(printbuf, "Enviado: %s", aux3);
-                        printout(0, printbuf);
-                    }
+                } else if(check_usr(&usr[1])){
+                    obey(ultra_trash);
                 }
                 if(maximum_trash){
                     free(maximum_trash);
@@ -127,18 +122,7 @@ void * servRecv(void *args){
                     free(ultra_trash);
                     ultra_trash = NULL;
                 }
-            } /*else{
-                if(strstr(usr, "raspberry") == NULL){
-                maximum_trash[0] = '\0';
-                char dest[] = "dr_nick";
-                sprintf(maximum_trash, "PRIVMSG %s :<%s@%s> %s", dest, &usr[1], ch, command);
-                char* p;
-                while((p = strchr(maximum_trash, '\n')) != NULL) *p = '/';
-                wprintw(output_win, "maximum_trash:%s\n", maximum_trash);
-                fflush(stdout);
-                escribir(sockfd, maximum_trash);
-                }
-                }*/
+            }
         }
     }
     printout(0, "Terminada la conexion\n");
@@ -513,83 +497,3 @@ int escribir(int sockfd,char *msg){
     }
     return aux;
 }
-/*int conexionPruebaCliente(char * direccion,char * puerto){
-  struct addrinfo hints, *res;
-  int sockfd, sock_server;
-  char msg[1000];
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;  // use IPv4 or IPv6, whichever
-  hints.ai_socktype = SOCK_STREAM;
-  wprintw(output_win, "Abriendo socket\n");
-  getaddrinfo("172.16.187.180", "2020", &hints, &res);
-  sockfd = abrirSocketTCP();
-  if (sockfd==-1){
-  wprintw(output_win, "ERROR: socket\n");
-  return -1;
-  }
-
-  wprintw(output_win, "Conectando\n");
-  if(-1==(sock_server==abrirConnect(sockfd,*(res->ai_addr)))){
-  wprintw(output_win, "ERROR: connect\n");
-  return -1;
-  }
-
-// convert to network byte order
-// send data normally:
-while (1){
-recibir(sockfd, msg);
-wprintw(output_win, "Recibido:%s\n", msg);
-strcpy(msg,"PONG");
-sleep(2);
-//send(sockfd,msg,strlen(msg),0);
-escribir(sockfd, msg);
-}
-return 0;
-}
-*/
-
-/*int conexionPruebaServidor(){
-  int sockfd, socketClient, aux = 1;
-  struct sockaddr_in ip4addr;
-  char buf[1000];
-  wprintw(output_win, "Abriendo socket\n");
-  sockfd = abrirSocketTCP();
-  if (sockfd==-1){
-  wprintw(output_win, "ERROR: socket\n");
-  return -1;
-  }
-  wprintw(output_win, "Abriedo bind\n");
-  if( -1==abrirBind(sockfd)){
-  wprintw(output_win, "ERROR: bind\n");
-  return -1;
-  }
-  wprintw(output_win, "Escuchando\n");
-  if(-1==abrirListen(sockfd)){
-  wprintw(output_win, "ERROR: listen\n");
-  return -1;
-  }
-  wprintw(output_win, "Esperando accept\n");
-  socketClient = aceptar(sockfd, ip4addr);
-  if(socketClient ==-1){
-  wprintw(output_win, "ERROR: accept\n");
-  return -1;
-  }
-
-  wprintw(output_win, "sock_client:%d, sockfd:%d\n", socketClient,sockfd);
-  while( aux > 0){
-  sleep(2);
-  strcpy(buf,"PING");
-  write(socketClient, buf , strlen(buf));
-  aux=recv(socketClient, buf,1000,0);
-  if(aux == 0){
-  wprintw(output_win, "fin de la conexion\n");
-  return 0;
-  }
-  buf[aux]='\0';
-  wprintw(output_win, "Recibido:%s\n",buf );
-  }
-//byte_count = recv(sockfd, buf, sizeof buf, 0);
-//wprintw(output_win, "recv()'d %d bytes of data in buf\n", byte_count);
-
-return 0;
-}*/
