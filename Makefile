@@ -7,7 +7,7 @@ DIR = $(shell basename "$(CURDIR)")
 SRCDIR = bot
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 OBJS = $(SOURCES:.c=.o)
-INCLUDES = $(SRCDIR)/funciones.h
+INCLUDES = $(SRCDIR)/bot.h
 TARFLAG = -cvzf
 TARNAME = bot.tgz
 

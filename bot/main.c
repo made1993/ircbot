@@ -1,5 +1,6 @@
-#include "funciones.h"
+#include "bot.h"
 #include <getopt.h>
+#include <signal.h>
 
 void intHandler(int);
 void iniGlobales();
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]){
                 wrefresh(input_win);
                 if(getCommand(msg)) continue;
                 sprintf(msg, "%s%c%c", msg, 0X0d, 0X0d);
-                escribir(sockfd, msg);
+                socketwrite(sockfd, msg);
                 wrefresh(output_win);
             } else {
                 pause();

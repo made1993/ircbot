@@ -1,4 +1,4 @@
-#include "funciones.h"
+#include "bot.h"
 #include <errno.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -22,6 +22,19 @@ int check_usr(char * usr){
     return 0;
 }
 
+void printsendrecv(char* s, int sent){
+    char *p, *aux = malloc(strlen(s) + strlen("Received: ") + 1);
+    strcpy(aux, s);
+    while((p = strchr(aux, '\r')) != NULL) *p = '/';
+    if (!sent){
+        sprintf(aux, "Received: %s", aux);
+    } else {
+        sprintf(aux, "Sent: %s", aux);
+    }
+    if(strstr(aux, " PONG") == NULL) printout(0, aux);
+    free(aux);
+}
+
 void obey(char* s){
     if(strncmp(s, "SEND", strlen("SEND")) == 0){
         sendv = 1;
@@ -42,28 +55,26 @@ void obey(char* s){
         rtfmv = 0;
         printout(0, "NRTFM\n");
     } else if (sendv == 1 && iscommand(s) == 1){
-        char *p, *aux = malloc(strlen(s) + strlen("Enviado: ") + 1);
-        escribir(sockfd, s);
-        strcpy(aux, s);
-        while((p = strchr(aux, '\r')) != NULL) *p = '/';
-        sprintf(aux, "Enviado: %s", aux);
-        printout(0, aux);
-        free(aux);
+        socketwrite(sockfd, s);
+        printsendrecv(s, 1);
     }
 }
 
-void * servRecv(void *args){
-    char buf[BUFFER_SIZE], aux2[BUFFER_SIZE], ch[128], aux3[BUFFER_SIZE], printbuf[BUFFER_SIZE + 16];
+void giveops(char* ch, char* usr){
+    char *s = malloc(strlen("MODE  +o \n") + strlen(ch) +  strlen(usr) + 2);
+    sprintf(s, "MODE %s +o %s%c%c", ch, usr, 0x0d, 0x0a);
+    socketwrite(sockfd, s);
+    printsendrecv(s, 1);
+    free(s);
+}
+
+void *servRecv(void *args){
+    char buf[BUFFER_SIZE], ch[128]; 
     char *command, *usr, *trash, *ultra_trash, *maximum_trash, *p;
-    int aux;
     while(1){
-        printbuf[0] = '\0';
         ultra_trash = trash = usr = command = p = maximum_trash = NULL;
-        if(0 < (aux = recibir(sockfd, buf))){
-            strcpy(aux3, buf);
-            while((p = strchr(aux3, '\r')) != NULL) *p = '/';
-            sprintf(printbuf, "Recibido: %s", aux3);
-            if (strstr(aux3, " PONG") == NULL) printout(0, printbuf);
+        if(0 < (socketrecv(sockfd, buf))){
+            printsendrecv(buf, 0);
             usr = strtok (buf,"!");
             if(usr == NULL) continue;
             trash = strtok (NULL," ");
@@ -73,12 +84,7 @@ void * servRecv(void *args){
             trash = strtok (NULL," ");
             strcpy(ch, trash);
             if(strcmp(command, "JOIN") == 0){
-                aux2[0] = '0';
-                sprintf(aux2, "MODE #cosas +o %s%c%c", usr, 0x0d, 0x0a);
-                printbuf[0] = '\0';
-                sprintf(printbuf, "Enviado: MODE #cosas +o %s\n", usr);
-                printout(0, printbuf);
-                escribir(sockfd, aux2);
+                giveops(ch, usr);
             } else if(strcmp(command, "PRIVMSG") == 0){
                 trash = strtok(NULL, "");
                 ultra_trash = malloc(sizeof(char) * strlen(trash) + 3);
@@ -88,24 +94,16 @@ void * servRecv(void *args){
                     sprintf(maximum_trash, "PRIVMSG %s :%s", ch, ultra_trash);
                     p = strchr(maximum_trash, '\r');
                     *(p + 2) = '\0';
-                    escribir(sockfd, maximum_trash);
-                    strcpy(aux3, maximum_trash);
-                    while((p = strchr(aux3, '\r')) != NULL) *p = '/';
-                    printbuf[0] = '\0';
-                    sprintf(printbuf, "Enviado: %s", aux3);
-                    printout(0, printbuf);
+                    socketwrite(sockfd, maximum_trash);
+                    printsendrecv(maximum_trash, 1);
                     if(maximum_trash){
                         free(maximum_trash);
                         maximum_trash = NULL;
                     }
                 } else if(iscommand(ultra_trash) == 0 && rtfmv == 1){
                     sprintf(maximum_trash, "PRIVMSG %s :RTFM\n\r", ch);
-                    escribir(sockfd, maximum_trash);
-                    strcpy(aux3, maximum_trash);
-                    while((p = strchr(aux3, '\r')) != NULL) *p = '/';
-                    printbuf[0] = '\0';
-                    sprintf(printbuf, "Enviado: %s", aux3);
-                    printout(0, printbuf);
+                    socketwrite(sockfd, maximum_trash);
+                    printsendrecv(maximum_trash, 1);
                     if(maximum_trash){
                         free(maximum_trash);
                         maximum_trash = NULL;
@@ -125,7 +123,7 @@ void * servRecv(void *args){
             }
         }
     }
-    printout(0, "Terminada la conexion\n");
+    printout(0, "Conection terminated.\n");
 }
 
 int iscommand(char* s){
@@ -204,7 +202,7 @@ void connect_client(pthread_t* h1, pthread_t* h2){
     char command[256];
     char printbuf[128];
     printbuf[0] = '\0';
-    sprintf(printbuf, "Conectando a %s:%i\n", servername, port);
+    sprintf(printbuf, "Connecting %s:%i\n", servername, port);
     printout(0, printbuf);
 
     memset(&hints, 0, sizeof hints);
@@ -212,22 +210,22 @@ void connect_client(pthread_t* h1, pthread_t* h2){
     hints.ai_socktype = SOCK_STREAM;
 
     /*Comenzamos la conexion TCP*/
-    printout(0, "Se obtiene iformacion\n");
+    printout(0, "Getting information...\n");
     sprintf(port_s, "%i", port);
-    if(0!=getaddrinfo(servername, port_s, &hints, &res)){
-        printout(1, "Error al onbtener informacion del servidor\n");
+    if(0 != getaddrinfo(servername, port_s, &hints, &res)){
+        printout(1, "Error getting information from the server.\n");
         return;
     }
-    printout(0, "socket\n");
-    sockfd=abrirSocketTCP();
-    if(sockfd==-1){
-        printout(1, "Error al crear el socket\n");
+    printout(0, "socket...\n");
+    sockfd = openTCPsocket();
+    if(sockfd == -1){
+        printout(1, "Error creating socket.\n");
         return;
     }
-    printout(0, "connect\n");
+    printout(0, "connect...\n");
 
-    if(-1==abrirConnect(sockfd, *(res->ai_addr))){
-        printout(1, "Error al conectar\n");
+    if(-1 == openConnect(sockfd, *(res->ai_addr))){
+        printout(1, "Error connecting.\n");
         return;
     }
     if(res){
@@ -235,21 +233,21 @@ void connect_client(pthread_t* h1, pthread_t* h2){
         res = NULL;
     }
     /*Conexion IRC*/
-    printout(0, "IRC\n");
+    printout(0, "IRC...\n");
 
     pthread_create(h1,NULL, servRecv, (void *)NULL );
     pthread_detach(*h1);
 
     sprintf(command, "NICK %s%c%cUSER %s %s %s :%s%c%c", nick_s, 0X0d, 0X0d, nick_s, nick_s, servername, nick_s, 0X0d, 0X0d);
-    nick=escribir(sockfd,command);
+    nick = socketwrite(sockfd, command);
     char* p = NULL;
     while((p = strchr(command, '\r')) != NULL) *p = '/';
     printbuf[0] = '\0';
-    sprintf(printbuf, "%s, %d\n", command,nick);
+    sprintf(printbuf, "%s, %d\n", command, nick);
     printout(0, printbuf);
 
     //sleep(1);
-    pthread_create(h2, NULL, Ping, (void *)NULL );
+    pthread_create(h2, NULL, ping, (void *)NULL );
 
     if(res){
         freeaddrinfo(res);
@@ -257,17 +255,17 @@ void connect_client(pthread_t* h1, pthread_t* h2){
     }
 }
 
-void * Ping(void *args){
+void *ping(void *args){
     while(1){
         char command[30];
         sleep(20);
         sprintf(command,"PING metis.ii.uam.es%c%c",0X0d,0X0d);
-        escribir(sockfd,command);
+        socketwrite(sockfd,command);
         //wprintw(output_win, "%s", command);
     }
 }
 
-int abrirSocketTCP(){
+int openTCPsocket(){
     int sockfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
     if(sockfd < 0){
         switch(errno){
@@ -302,8 +300,8 @@ int abrirSocketTCP(){
 
 }
 /*anadido return -1*/
-int abrirSocketUDP(){
-    int sockfd=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+int openUDPsocket(){
+    int sockfd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(sockfd < 0){
         switch(errno){
             case EACCES:
@@ -337,10 +335,10 @@ int abrirSocketUDP(){
     return sockfd;
 
 }
-int abrirConnect(int sockfd, struct sockaddr res){
+int openConnect(int sockfd, struct sockaddr res){
     int cnct=0;
-    cnct= connect(sockfd, &res, sizeof(res));
-    if (cnct==-1){
+    cnct = connect(sockfd, &res, sizeof(res));
+    if (cnct == -1){
         switch(errno){
             case EACCES:
                 printout(1, "For UNIX domain sockets, which are identified by pathname: Write permission is denied on the socket file, or search permission is denied for one of the directories in the path prefix. (See also path_resolution(7).) \n");
@@ -394,11 +392,11 @@ int abrirConnect(int sockfd, struct sockaddr res){
     return 0;
 }
 
-int recibir(int sockfd,char *buf){
+int socketrecv(int sockfd, char *buf){
     int aux=0;
     aux = recv(sockfd, buf, 1000, 0);
-    buf[aux]='\0';
-    if (aux==-1){
+    buf[aux] = '\0';
+    if (aux == -1){
         switch(errno){
             case (EAGAIN || EWOULDBLOCK):
                 printout(1, "The socket is marked nonblocking and the receive operation would block, or a receive timeout had been set and the timeout"
@@ -435,7 +433,7 @@ int recibir(int sockfd,char *buf){
     }
     return aux;
 }
-int escribir(int sockfd,char *msg){
+int socketwrite(int sockfd, char *msg){
     int aux = send(sockfd, msg, strlen(msg), 0);
     if(-1 == aux){
         switch(errno){
