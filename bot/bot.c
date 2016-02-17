@@ -70,11 +70,13 @@ void obey(char* s){
 }
 
 void giveops(char* ch, char* usr){
-    char *s = malloc(strlen("MODE  +o \n") + strlen(ch) +  strlen(usr) + 2);
-    sprintf(s, "MODE %s +o %s%c%c", ch, usr, 0x0d, 0x0a);
-    socketwrite(sockfd, s);
-    printsendrecv(s, 1);
-    free(s);
+    if(check_usr(usr)){
+        char *s = malloc(strlen("MODE  +o \n") + strlen(ch) +  strlen(usr) + 2);
+        sprintf(s, "MODE %s +o %s%c%c", ch, usr, 0x0d, 0x0a);
+        socketwrite(sockfd, s);
+        printsendrecv(s, 1);
+        free(s);
+    }
 }
 
 void *servRecv(void *args){
