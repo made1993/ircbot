@@ -78,7 +78,6 @@ void *servRecv(void *args){
             printsendrecv(buf, 0);
             usr = strtok (buf,"!") + 1;
             if(usr == NULL) continue;
-            //usr = usr++;
             info = strtok (NULL," ");
             if(info == NULL) continue;
             command = strtok (NULL," ");
@@ -94,7 +93,6 @@ void *servRecv(void *args){
                 char * msg = NULL;
                 info = strtok(NULL, "");
                 msg = malloc(strlen(info) + strlen(usr) + strlen("PRIVMSG") + 5);
-                msg[0] = '\0';
                 if(iscommand(&info[1]) == 0 && loro == 1){
                     sprintf(msg, "PRIVMSG %s :%s", ch, &info[1]);
                     p = strchr(msg, '\r');
@@ -113,11 +111,34 @@ void *servRecv(void *args){
                     free(msg);
                     msg = NULL;
                 }
-                excptloro = 0;
             }
         }
     }
     printout(0, "Conection terminated.\n");
+}
+
+void readconf(){
+    size_t size = 0;
+    char *buff = NULL;
+    while(getline(&buff, &size, pconff) != -1){
+        char *p;
+        if((p = strchr(buff, '\n')) != NULL) *p = '\0';
+        if(strncmp(buff, "SERVER:", strlen("SERVER:")) == 0){
+            p = strchr(buff, ':');
+            strcpy(servername, ++p);
+        } else if(strncmp(buff, "PORT:", strlen("PORT:")) == 0){
+            p = strchr(buff, ':');
+            port = atoi(++p);
+        } else if(strncmp(buff, "NICK:", strlen("NICK:")) == 0){
+            p = strchr(buff, ':');
+            strcpy(nick_s, ++p);
+        }
+        if(buff) free(buff);
+        buff = NULL;
+    }
+    if(buff) free(buff);
+    buff = NULL;
+    fseek(pconff, 0, SEEK_SET);
 }
 
 int iscommand(char* s){
@@ -163,30 +184,6 @@ void printout(int err, char *s){
         fflush(stdout);
     }
     fprintf(plogf, "%s", s);
-}
-
-void readconf(){
-    size_t size = 0;
-    char *buff = NULL;
-    while(getline(&buff, &size, pconff) != -1){
-        char *p;
-        if((p = strchr(buff, '\n')) != NULL) *p = '\0';
-        if(strncmp(buff, "SERVER:", strlen("SERVER:")) == 0){
-            p = strchr(buff, ':');
-            strcpy(servername, ++p);
-        } else if(strncmp(buff, "PORT:", strlen("PORT:")) == 0){
-            p = strchr(buff, ':');
-            port = atoi(++p);
-        } else if(strncmp(buff, "NICK:", strlen("NICK:")) == 0){
-            p = strchr(buff, ':');
-            strcpy(nick_s, ++p);
-        }
-        if(buff) free(buff);
-        buff = NULL;
-    }
-    if(buff) free(buff);
-    buff = NULL;
-    fseek(pconff, 0, SEEK_SET);
 }
 
 void connect_client(pthread_t* h1, pthread_t* h2){
