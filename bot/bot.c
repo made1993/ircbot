@@ -32,6 +32,11 @@ void printsendrecv(char* s, int sent){
     if (!sent){
         sprintf(aux, "%s", aux);
         if(strstr(aux, " PONG") == NULL) printout(0, aux);
+        if(strstr(aux, "NOTICE") < strstr(aux, ":Connection statistics: ")){
+            free(aux);
+            aux = NULL;
+            kill(getpid(), SIGINT);
+        }
     } else {
         sprintf(aux, "%s", aux);
         printout(0, aux);
@@ -89,29 +94,26 @@ void *servRecv(void *args){
             strcpy(ch, info);
             while((p = strchr(ch, '\n')) != NULL) *p = '\0';
             while((p = strchr(ch, '\r')) != NULL) *p = '\0';
-            if(strcmp(command, "JOIN") == 0){
+            info = strtok(NULL, "");
+            if(!strcmp(command, "JOIN")){
                 giveops(&ch[1], usr);
-            } else if(strcmp(command, "PRIVMSG") == 0){
-                int k = 0;
-                char * msg = NULL;
-                info = strtok(NULL, "");
-                msg = malloc(strlen(info) + strlen(usr) + strlen("PRIVMSG") + 5);
-                if(!iscommand(&info[1]) && loro){
-                    sprintf(msg, "PRIVMSG %s :%s", ch, &info[1]);
-                    p = strchr(msg, '\r');
-                    *(p + 2) = '\0';
-                } else if(!iscommand(&info[1]) && rtfmv){
-                    sprintf(msg, "PRIVMSG %s :RTFM\n\r", ch);
+            } else if(!strcmp(command, "PRIVMSG")){
+                char *msg = malloc(strlen(info) + strlen(usr) + strlen("PRIVMSG") + 5);
+                if(!iscommand(&info[1])){
+                    if(loro){
+                        sprintf(msg, "PRIVMSG %s :%s", ch, &info[1]);
+                        socketwrite(sockfd, msg);
+                        printsendrecv(msg, 1);
+                    }
+                    if(rtfmv){
+                        sprintf(msg, "PRIVMSG %s :RTFM\r\n", ch);
+                        socketwrite(sockfd, msg);
+                        printsendrecv(msg, 1);
+                    }
                 } else if(check_usr(usr)){
-                    k = 1;
                     obey(&info[1]);
                 }
-                if(!k){
-                    socketwrite(sockfd, msg);
-                    printsendrecv(msg, 1);
-                }
                 free(msg);
-                msg = NULL;
             }
         }
     }
