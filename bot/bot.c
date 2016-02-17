@@ -3,6 +3,9 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
+const char *IRCcommands[] = {"PRIVMSG", "JOIN", "NICK", "SEND", "MODE", "NOTICE", "INVITE", "TOPIC", "PART", NULL};
+const char *specialcommands[] = {"QUIT", "LORO", "NLORO", "RTFM", "NRTFM", NULL};
+
 int check_usr(char * usr){
     size_t size = 0;
     char *buff = NULL;
@@ -93,11 +96,11 @@ void *servRecv(void *args){
                 char * msg = NULL;
                 info = strtok(NULL, "");
                 msg = malloc(strlen(info) + strlen(usr) + strlen("PRIVMSG") + 5);
-                if(iscommand(&info[1]) == 0 && loro == 1){
+                if(!iscommand(&info[1]) && loro){
                     sprintf(msg, "PRIVMSG %s :%s", ch, &info[1]);
                     p = strchr(msg, '\r');
                     *(p + 2) = '\0';
-                } else if(iscommand(&info[1]) == 0 && rtfmv == 1){
+                } else if(!iscommand(&info[1]) && rtfmv){
                     sprintf(msg, "PRIVMSG %s :RTFM\n\r", ch);
                 } else if(check_usr(usr)){
                     k = 1;
@@ -107,10 +110,8 @@ void *servRecv(void *args){
                     socketwrite(sockfd, msg);
                     printsendrecv(msg, 1);
                 }
-                if(msg != NULL){
-                    free(msg);
-                    msg = NULL;
-                }
+                free(msg);
+                msg = NULL;
             }
         }
     }
@@ -133,44 +134,18 @@ void readconf(){
             p = strchr(buff, ':');
             strcpy(nick_s, ++p);
         }
-        if(buff) free(buff);
+        free(buff);
         buff = NULL;
     }
-    if(buff) free(buff);
+    free(buff);
     buff = NULL;
     fseek(pconff, 0, SEEK_SET);
 }
 
 int iscommand(char* s){
-    if(strncmp(s,"PRIVMSG",strlen("PRIVMSG"))==0){
-        return 1;
-    } else if(strncmp(s,"JOIN",strlen("JOIN"))==0){
-        return 1;
-    } else if(strncmp(s,"NICK",strlen("NICK"))==0){
-        return 1;
-    } else if(strncmp(s,"SEND",strlen("SEND"))==0){
-        return 1;
-    } else if(strncmp(s,"MODE",strlen("MODE"))==0){
-        return 1;
-    } else if(strncmp(s,"NOTICE",strlen("NOTICE"))==0){
-        return 1;
-    } else if(strncmp(s,"QUIT",strlen("QUIT"))==0){
-        return 1;
-    } else if(strncmp(s,"INVITE",strlen("INVITE"))==0){
-        return 1;
-    } else if(strncmp(s,"TOPIC",strlen("TOPIC"))==0){
-        return 1;
-    } else if(strncmp(s,"PART",strlen("PART"))==0){
-        return 1;
-    } else if(strncmp(s,"LORO",strlen("LORO"))==0){
-        return 1;
-    } else if(strncmp(s,"NLORO",strlen("NLORO"))==0){
-        return 1;
-    } else if(strncmp(s,"RTFM",strlen("RTFM"))==0){
-        return 1;
-    } else if(strncmp(s,"NRTFM",strlen("NRTFM"))==0){
-        return 1;
-    }
+    int i;
+    for(i = 0; IRCcommands[i] != NULL; i++) if(!strncmp(s, IRCcommands[i], strlen(IRCcommands[i]))) return 1;
+    for(i = 0; specialcommands[i]  != NULL; i++) if(!strncmp(s, specialcommands[i], strlen(specialcommands[i]))) return 1;
     return 0;
 }
 
@@ -238,7 +213,7 @@ void connect_client(pthread_t* h1, pthread_t* h2){
     printout(0, printbuf);
 
     //sleep(1);
-    pthread_create(h2, NULL, ping, (void *)NULL );
+    pthread_create(h2, NULL, ping, (void *) NULL);
 
     if(res){
         freeaddrinfo(res);
@@ -250,9 +225,8 @@ void *ping(void *args){
     while(1){
         char command[30];
         sleep(20);
-        sprintf(command,"PING metis.ii.uam.es%c%c",0X0d,0X0d);
+        sprintf(command,"PING %s%c%c", servername, 0X0d, 0X0d);
         socketwrite(sockfd,command);
-        //wprintw(output_win, "%s", command);
     }
 }
 

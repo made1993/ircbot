@@ -11,7 +11,7 @@ pthread_t h1, h2;
 char *whitespaces = NULL;
 
 int main(int argc, char *argv[]){
-    static struct option long_options[] = {
+    struct option long_options[] = {
         {"raw", no_argument, &mode, STDOUT},
         {"silent", no_argument, &mode, SILENT},
         {0, 0, 0, 0}
@@ -108,7 +108,6 @@ void iniGlobales(){
     sendv = 1;
     rtfmv = 0;
     loro = 0;
-    excptloro = 0;
 
     if(IS_CURSES(mode)){
         title_win = newwin(3, 3*COLS/4, 0, 0);
@@ -150,7 +149,6 @@ int getCommand(char* msg){
         ret = 1;
     }else if(strcmp(msg, "LORO") == 0){
         loro = LORO;
-        excptloro = 0;
         ret = 1;
     }else if(strcmp(msg, "NLORO") == 0){
         loro = NLORO;
