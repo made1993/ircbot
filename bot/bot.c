@@ -27,11 +27,12 @@ void printsendrecv(char* s, int sent){
     strcpy(aux, s);
     while((p = strchr(aux, '\r')) != NULL) *p = '/';
     if (!sent){
-        sprintf(aux, "Received: %s", aux);
+        sprintf(aux, "%s", aux);
+        if(strstr(aux, " PONG") == NULL) printout(0, aux);
     } else {
-        sprintf(aux, "Sent: %s", aux);
+        sprintf(aux, "%s", aux);
+        printout(0, aux);
     }
-    if(strstr(aux, " PONG") == NULL) printout(0, aux);
     free(aux);
 }
 
@@ -69,57 +70,50 @@ void giveops(char* ch, char* usr){
 }
 
 void *servRecv(void *args){
-    char buf[BUFFER_SIZE], ch[128]; 
-    char *command, *usr, *trash, *ultra_trash, *maximum_trash, *p;
+    char buf[BUFFER_SIZE], ch[128];
+    char *command, *usr, *info, *p;
     while(1){
-        ultra_trash = trash = usr = command = p = maximum_trash = NULL;
+        info = usr = command = p = NULL;
         if(0 < (socketrecv(sockfd, buf))){
             printsendrecv(buf, 0);
-            usr = strtok (buf,"!");
+            usr = strtok (buf,"!") + 1;
             if(usr == NULL) continue;
-            trash = strtok (NULL," ");
-            if(trash == NULL) continue;
+            //usr = usr++;
+            info = strtok (NULL," ");
+            if(info == NULL) continue;
             command = strtok (NULL," ");
             if(command == NULL) continue;
-            trash = strtok (NULL," ");
-            strcpy(ch, trash);
+            info = strtok (NULL," ");
+            strcpy(ch, info);
+            while((p = strchr(ch, '\n')) != NULL) *p = '\0';
+            while((p = strchr(ch, '\r')) != NULL) *p = '\0';
             if(strcmp(command, "JOIN") == 0){
-                giveops(ch, usr);
+                giveops(&ch[1], usr);
             } else if(strcmp(command, "PRIVMSG") == 0){
-                trash = strtok(NULL, "");
-                ultra_trash = malloc(sizeof(char) * strlen(trash) + 3);
-                strcpy(ultra_trash, &trash[1]);
-                maximum_trash = malloc(strlen(trash) + strlen(usr) + strlen("PRIVMSG") + 5);
-                if(iscommand(ultra_trash) == 0 && loro == 1){
-                    sprintf(maximum_trash, "PRIVMSG %s :%s", ch, ultra_trash);
-                    p = strchr(maximum_trash, '\r');
+                int k = 0;
+                char * msg = NULL;
+                info = strtok(NULL, "");
+                msg = malloc(strlen(info) + strlen(usr) + strlen("PRIVMSG") + 5);
+                msg[0] = '\0';
+                if(iscommand(&info[1]) == 0 && loro == 1){
+                    sprintf(msg, "PRIVMSG %s :%s", ch, &info[1]);
+                    p = strchr(msg, '\r');
                     *(p + 2) = '\0';
-                    socketwrite(sockfd, maximum_trash);
-                    printsendrecv(maximum_trash, 1);
-                    if(maximum_trash){
-                        free(maximum_trash);
-                        maximum_trash = NULL;
-                    }
-                } else if(iscommand(ultra_trash) == 0 && rtfmv == 1){
-                    sprintf(maximum_trash, "PRIVMSG %s :RTFM\n\r", ch);
-                    socketwrite(sockfd, maximum_trash);
-                    printsendrecv(maximum_trash, 1);
-                    if(maximum_trash){
-                        free(maximum_trash);
-                        maximum_trash = NULL;
-                    }
-                } else if(check_usr(&usr[1])){
-                    obey(ultra_trash);
+                } else if(iscommand(&info[1]) == 0 && rtfmv == 1){
+                    sprintf(msg, "PRIVMSG %s :RTFM\n\r", ch);
+                } else if(check_usr(usr)){
+                    k = 1;
+                    obey(&info[1]);
                 }
-                if(maximum_trash){
-                    free(maximum_trash);
-                    maximum_trash = NULL;
+                if(!k){
+                    socketwrite(sockfd, msg);
+                    printsendrecv(msg, 1);
+                }
+                if(msg != NULL){
+                    free(msg);
+                    msg = NULL;
                 }
                 excptloro = 0;
-                if(ultra_trash){
-                    free(ultra_trash);
-                    ultra_trash = NULL;
-                }
             }
         }
     }
