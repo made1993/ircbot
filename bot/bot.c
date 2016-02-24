@@ -3,7 +3,8 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
-const char *IRCcommands[] = {"PRIVMSG", "JOIN", "NICK", "SEND", "MODE", "NOTICE", "INVITE", "TOPIC", "PART", NULL};
+const char *IRCcommands[] = {"PRIVMSG", "JOIN", "NICK", "SEND", "MODE",
+                            "NOTICE", "INVITE", "TOPIC", "PART", NULL};
 const char *specialcommands[] = {"QUIT", "LORO", "NLORO", "RTFM", "NRTFM", NULL};
 
 int check_usr(char * usr){
@@ -270,7 +271,7 @@ int openTCPsocket(){
 }
 /*anadido return -1*/
 int openUDPsocket(){
-    int sockfd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    int sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if(sockfd < 0){
         switch(errno){
             case EACCES:
