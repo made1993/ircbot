@@ -8,16 +8,13 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <ncurses.h>
+#include <stdbool.h>
 
 #define IS_SILENT(k) (!k)
-#define IS_CURSES(k) (k == 2) ? 1: 0
+#define IS_CURSES(k) (k == 2) ? true: false
 
-#define INIT_MODE int
+#define INIT_MODE uint8_t
 
-#define LORO 1
-#define NLORO 0
-#define SEND 1
-#define NSEND 0
 #define SILENT 0
 #define STDOUT 1
 #define NCURSES 2
@@ -36,13 +33,13 @@ int socketrecv(int sockfd,char *buf);
 int socketwrite(int sockfd,char *msg);
 void *ping(void *args);
 void *servRecv(void *args);
-int iscommand(char* s);
-void printout(int err, char *s);
+bool iscommand(char* s);
+void printout(bool err, char *s);
 void readconf();
 
 
 int sockfd, port;
-int sendv, loro, rtfmv;
+bool sendv, loro, rtfmv;
 INIT_MODE mode;
 WINDOW *input_win, *title_win, *output_win;
 FILE *plogf, *pconff;

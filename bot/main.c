@@ -12,14 +12,14 @@ char *whitespaces = NULL;
 
 int main(int argc, char *argv[]){
 	struct option long_options[] = {
-		{"raw", no_argument, &mode, STDOUT},
-		{"silent", no_argument, &mode, SILENT},
+		{"raw", no_argument, (int *) &mode, STDOUT},
+		{"silent", no_argument, (int *) &mode, SILENT},
 		{0, 0, 0, 0}
 	};
 	pid_t pid = 0;
 	int c, option_index = 0;
 	mode = NCURSES;
-	while(1){
+	while(true){
 		c = getopt_long(argc, argv, "rs", long_options, &option_index);
 		if (c == -1) break;
 	}
@@ -140,28 +140,23 @@ void initCurses(){
 }
 
 int getCommand(char* msg){
-	int ret = 0;
+	int ret = 1;
 	if(strcmp(msg, "SEND") == 0){
-		sendv = SEND;
-		ret = 1;
+		sendv = true;
 	}else if(strcmp(msg, "NSEND") == 0){
-		sendv = NSEND;
-		ret = 1;
+		sendv = false;
 	}else if(strcmp(msg, "LORO") == 0){
-		loro = LORO;
-		ret = 1;
+		loro = true;
 	}else if(strcmp(msg, "NLORO") == 0){
-		loro = NLORO;
-		ret = 1;
+		loro = false;
 	}else if(strcmp(msg, "RTFM") == 0){
-		rtfmv = 1;
-		ret = 1;
+		rtfmv = true;
 	}else if(strcmp(msg, "NTRFM") == 0){
-		rtfmv = 0;
-		ret = 1;
+		rtfmv = false;
+	} else {
+		ret = 0;
 	}
 
-
-	if (ret == 1) printout(0, msg);
+	if (ret == 1) printout(false, msg);
 	return ret;
 }
